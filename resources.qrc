@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/plugins/OptimalMastPlanner" >
+        <file>icon.png</file>
+		<file>folder.png</file>
+    </qresource>
+</RCC>
