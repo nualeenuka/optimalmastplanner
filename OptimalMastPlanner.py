@@ -466,44 +466,28 @@ class OptimalMastPlanner:
         # Open the CSV file and read it
         with open(text_file_path, 'r') as file:
             reader = csv.DictReader(file)
-            
-            # Prepare a list to hold features
             features = []
-            
-            # Iterate through each row of the CSV file
             for row in reader:
-                # Extract values from the row
                 x = float(row['Reference Point X [m]'])
                 y = float(row['Reference Point Y [m]'])
                 z = float(row['Reference Point Z [m]'])
                 rix = float(row['Reference RIX [%]'])
-                uncertainty = float(row['RSS of uncertainty increases [%]'])
-                
-                # Create point geometry
+                # Only use new RSS uncertainty
+                uncertainty = float(row['adj_RSS_uncertainty'])
                 point = QgsPointXY(x, y)
                 point_geometry = QgsGeometry.fromPointXY(point)
-                
-                # Create a feature
                 feature = QgsFeature()
                 feature.setGeometry(point_geometry)
-                
-                # Set the attributes for the feature
                 feature.setAttributes([x, y, z, rix, uncertainty])
-                
-                # Add feature to the feature list
                 features.append(feature)
-
-            # Add features to the layer
             vector_mast_layer.dataProvider().addFeatures(features)
             vector_mast_layer.updateExtents()
-
         noerror = self.save_as_shp(vector_mast_layer, outpath, crs)
-        
         if noerror:
             layer = QgsVectorLayer(outpath, "Met Mass Points", "ogr")
             layer = self.style_point_layer(layer, 'circle','magenta', '1.8')   
             return layer
-            
+
     def generate_idw_raster(self, vector_mast_layer, vector_mast_path, output_idw_raster):
 
         
@@ -651,7 +635,12 @@ class OptimalMastPlanner:
         data = pd.read_csv(file_path, delimiter=',')  # Assuming the delimiter is a comma, change if needed
 
         # Step 2: Find the row with the lowest RSS of uncertainty increases [%]
-        lowest_rss_row = data.loc[data['RSS of uncertainty increases [%]'].idxmin()]
+        if 'adj_RSS_uncertainty' in data.columns:
+            lowest_rss_row = data.loc[data['adj_RSS_uncertainty'].idxmin()]
+            rss_col = 'adj_RSS_uncertainty'
+        else:
+            lowest_rss_row = data.loc[data['RSS of uncertainty increases [%]'].idxmin()]
+            rss_col = 'RSS of uncertainty increases [%]'
 
         # Step 3: Create a point feature with the coordinates
         point = QgsPointXY(lowest_rss_row['Reference Point X [m]'], lowest_rss_row['Reference Point Y [m]'])
@@ -666,7 +655,7 @@ class OptimalMastPlanner:
         fields.append(QgsField("ref_y", QMetaType.Double, "double", 20, 6, "Reference Point Y [m]"))
         fields.append(QgsField("ref_z", QMetaType.Double, "double", 20, 6, "Reference Point Z [m]"))
         fields.append(QgsField("rix_pct", QMetaType.Double, "double", 10, 2, "Reference RIX [%]"))
-        fields.append(QgsField("rss_uncert_pct", QMetaType.Double, "double", 10, 2, "RSS of uncertainty increases [%]"))
+        fields.append(QgsField("rss_uncert_pct", QMetaType.Double, "double", 10, 2, rss_col))
         # Create a memory vector layer
         layer = QgsVectorLayer('Point?crs='+crs, 'Optimal_single_mest_mast', 'memory')
         pr = layer.dataProvider()
@@ -674,7 +663,16 @@ class OptimalMastPlanner:
         # Add fields to the layer
         pr.addAttributes(fields)
         layer.updateFields()
-
+        
+        # Set the feature attributes
+        feature.setAttributes([
+            lowest_rss_row['Reference Point X [m]'],
+            lowest_rss_row['Reference Point Y [m]'],
+            lowest_rss_row['Reference Point Z [m]'],
+            lowest_rss_row['Reference RIX [%]'],
+            lowest_rss_row[rss_col]
+        ])
+        
         # Add the feature to the layer
         pr.addFeature(feature)
 
@@ -700,6 +698,10 @@ class OptimalMastPlanner:
         turbines = self.df_data[['WTG X [m]', 'WTG Y [m]', 'WTG Z [m]']].drop_duplicates().reset_index(drop=True)
         masts = self.df_data[['Reference Point X [m]', 'Reference Point Y [m]', 'Reference Point Z [m]']].drop_duplicates().reset_index(drop=True)
 
+        # Also get mast IDs for name field
+        ref_cols = ['Reference Point X [m]', 'Reference Point Y [m]', 'Reference Point Z [m]', 'Reference RIX [%]', 'mast_id']
+        unique_masts = self.df_data[ref_cols].drop_duplicates().reset_index(drop=True)
+
         # Create a matrix where rows represent turbines and columns represent met masts
         rss_matrix = pd.DataFrame(
             index=pd.MultiIndex.from_arrays([turbines['WTG X [m]'], turbines['WTG Y [m]'], turbines['WTG Z [m]']]),
@@ -710,7 +712,7 @@ class OptimalMastPlanner:
         for _, row in self.df_data.iterrows():
             turbine = (row['WTG X [m]'], row['WTG Y [m]'], row['WTG Z [m]'])
             mast = (row['Reference Point X [m]'], row['Reference Point Y [m]'], row['Reference Point Z [m]'])
-            rss_matrix.at[turbine, mast] = row['RSS of uncertainty increases [%]']
+            rss_matrix.at[turbine, mast] = row['adj_RSS_uncertainty']
 
         # Convert to numpy array for efficient computation
         rss_values = rss_matrix.to_numpy()
@@ -725,7 +727,6 @@ class OptimalMastPlanner:
             # For each turbine, select the minimum RSS between the two masts
             min_rss = np.minimum(rss_values[:, i], rss_values[:, j])
             total_rss = np.sum(min_rss)
-
             # Track the best combination
             if total_rss < best_total:
                 best_total = total_rss
@@ -736,24 +737,42 @@ class OptimalMastPlanner:
         mast_coords = masts.to_numpy()
         mast1_coords = mast_coords[best_pair[0]]
         mast2_coords = mast_coords[best_pair[1]]
+        # Find mast_id for each mast by matching coordinates
+        def get_mast_id(coords):
+            match = unique_masts[(unique_masts['Reference Point X [m]'] == coords[0]) &
+                                 (unique_masts['Reference Point Y [m]'] == coords[1]) &
+                                 (unique_masts['Reference Point Z [m]'] == coords[2])]
+            if not match.empty:
+                return match.iloc[0]['mast_id']
+            else:
+                return ""
+        mast_ids = [get_mast_id(mast1_coords), get_mast_id(mast2_coords)]
+        pair_total_rss = best_total / len(turbines) if len(turbines) > 0 else float('nan')
 
         vl = QgsVectorLayer("Point?crs={}".format(crs_epsg), "Optimal_pair_mest_mast", "memory")
         pr = vl.dataProvider()
 
-        # Add attributes
+        # Add attributes (no individual_rss)
         pr.addAttributes([
             QgsField("name", QMetaType.QString, "text", 255),  # String field with max 255 characters
             QgsField("x", QMetaType.Double, "double", 20, 6),  # 20 digits total, 6 decimal places
             QgsField("y", QMetaType.Double, "double", 20, 6),
-            QgsField("z", QMetaType.Double, "double", 10, 2)   # 10 digits total, 2 decimal places
+            QgsField("z", QMetaType.Double, "double", 10, 2),   # 10 digits total, 2 decimal places
+            QgsField("pair_total_rss", QMetaType.Double, "double", 20, 6)
         ])
         vl.updateFields()
 
         # Create features
-        for i, (name, coords) in enumerate(zip(["Mast 1", "Mast 2"], [mast1_coords, mast2_coords])):
+        for name, coords in zip(mast_ids, [mast1_coords, mast2_coords]):
             feat = QgsFeature()
             feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(coords[0], coords[1])))
-            feat.setAttributes([name, coords[0], coords[1], coords[2]])
+            feat.setAttributes([
+                name,
+                coords[0],
+                coords[1],
+                coords[2],
+                float(pair_total_rss)
+            ])
             pr.addFeature(feat)
 
         noerror = self.save_as_shp(vl, outpath, crs_epsg)
@@ -764,6 +783,22 @@ class OptimalMastPlanner:
             layer = QgsVectorLayer(outpath, "Optimal_pair_mest_mast", "ogr")
             layer = self.style_point_layer(layer, 'square', '#4bff4b', '3.5')
             QgsProject.instance().addMapLayer(layer)
+            
+            # Output all pairs and their uncertainties to CSV
+            all_pairs_csv = outpath.replace('.shp', '_all_pairs.csv')
+            num_turbines = len(turbines)
+            with open(all_pairs_csv, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['mast_id_1', 'mast_id_2', 'total_rss', 'avg_rss', 'is_best'])
+                for (i, j) in combinations(range(len(masts)), 2):
+                    min_rss = np.minimum(rss_values[:, i], rss_values[:, j])
+                    total_rss = np.sum(min_rss)
+                    avg_rss = total_rss / num_turbines if num_turbines > 0 else float('nan')
+                    mast1_coords = masts.iloc[i].values
+                    mast2_coords = masts.iloc[j].values
+                    mast_ids_pair = [get_mast_id(mast1_coords), get_mast_id(mast2_coords)]
+                    is_best = (i, j) == best_pair
+                    writer.writerow([mast_ids_pair[0], mast_ids_pair[1], total_rss, avg_rss, is_best])
             
             
     def process_best_two_met_mast0(self, input_trix_file, outpath, crs_epsg):
@@ -840,7 +875,6 @@ class OptimalMastPlanner:
                 QgsProject.instance().addMapLayer(layer)
      
     def aggregate_process_trix_file(self, input_trix_file, output_turbine_file, output_mast_points_file):
-    
         # Optimized file reading: read until stop marker is found
         with open(input_trix_file, 'r') as f:
             data_lines = []
@@ -867,17 +901,40 @@ class OptimalMastPlanner:
         unique_masts['mast_id'] = ['Mast_{:02d}'.format(i+1) for i in range(len(unique_masts))]
         self.df_data = pd.merge(self.df_data, unique_masts, on=ref_cols, how='left')
 
-        # Vectorized RSS adjustment
-        mask = (
-            (self.df_data['Horizontal Distance [m]'] < 
-             self.df_data['Maximum Horizontal Distance(B) [m]']) & 
-            (self.df_data['RSS of uncertainty increases [%]'] == 0)
-        )
-        if not self.df_data.empty:
-            km_adjustment = (self.df_data.loc[mask, 'Horizontal Distance [m]'] // 1000).astype(int)
-            self.df_data.loc[mask, 'RSS of uncertainty increases [%]'] += km_adjustment
+        # Ensure all relevant columns are numeric to avoid TypeError
+        cols_to_numeric = [
+            'Horiz. Uc increase due to horiz. distance [%]',
+            'Horizontal Distance [m]',
+            'Horiz. Uc increase due to vert. distance [%]',
+            'Vertical uncertainty increase [%]'
+        ]
+        for col in cols_to_numeric:
+            self.df_data[col] = pd.to_numeric(self.df_data[col], errors='coerce')
 
-        # Save the full DataFrame before grouping/averaging
+        # If any of these columns is null, set it to 100 before arithmetic
+        self.df_data['Horiz. Uc increase due to horiz. distance [%]'] = self.df_data['Horiz. Uc increase due to horiz. distance [%]'].fillna(100)
+        self.df_data['Horiz. Uc increase due to vert. distance [%]'] = self.df_data['Horiz. Uc increase due to vert. distance [%]'].fillna(100)
+
+        # --- Begin corrected RSS uncertainty logic ---
+        # 1. Add (Horizontal Distance [m] / 1000) to Horiz. Uc increase due to horiz. distance [%]
+        self.df_data['adj_horiz_uc_horiz_dist'] = (
+            self.df_data['Horiz. Uc increase due to horiz. distance [%]'] +
+            (self.df_data['Horizontal Distance [m]'] / 1000)
+        )
+
+        # 2. Sum with Horiz. Uc increase due to vert. distance [%]
+        self.df_data['adj_sum_horiz_uc'] = (
+            self.df_data['adj_horiz_uc_horiz_dist'] +
+            self.df_data['Horiz. Uc increase due to vert. distance [%]']
+        )
+
+        # 3. New RSS uncertainty
+        self.df_data['adj_RSS_uncertainty'] = np.sqrt(
+            self.df_data['adj_sum_horiz_uc']**2 +
+            self.df_data['Vertical uncertainty increase [%]']**2
+        )
+
+        # 4. Save the full DataFrame before grouping/averaging
         pre_avg_csv = output_mast_points_file.replace('.csv', '_full.csv')
         self.df_data.to_csv(pre_avg_csv, index=False)
 
@@ -885,9 +942,9 @@ class OptimalMastPlanner:
         met_masts_csv = output_mast_points_file.replace('mast_points_data.csv', 'met_masts_locations.csv')
         unique_masts.to_csv(met_masts_csv, index=False)
 
-        # Group reference points and calculate mean RSS, keeping mast_id
+        # Group reference points and calculate mean of new RSS uncertainty, keeping mast_id
         grouped_ref = self.df_data.groupby(ref_cols + ['mast_id'], as_index=False, observed=True).agg({
-            'RSS of uncertainty increases [%]': 'mean'
+            'adj_RSS_uncertainty': 'mean'
         })
         grouped_ref.to_csv(output_mast_points_file, index=False)
 
