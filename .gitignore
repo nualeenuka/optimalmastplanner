@@ -1,29 +1,2 @@
-# Ignore all hidden folders
-.*/
-
 # Ignore all __pycache__ folders
 __pycache__/
-
-# Ignore Python compiled files
-*.pyc
-*.pyo
-*.pyd
-
-# Ignore Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# Ignore unnecessary files
-*.ipynb
-*.xlsx
-
-# Ignore temporary files
-*.tmp
-*.bak
-*.swp
-*.swo
-*.pid
-
-# Ignore virtual environment folders
-venv/
-env/
-.venv/

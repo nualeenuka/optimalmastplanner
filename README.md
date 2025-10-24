@@ -1,8 +1,8 @@
-# OptimalMastPlanner QGIS Plugin
+# OptimalMeasurementPlanner QGIS Plugin
 
 ## Overview
 
-**OptimalMastPlanner** is a QGIS plugin designed to support the optimal placement and analysis of meteorological masts (met masts) and wind turbines. It processes TRIX files and generates spatial outputs—CSV, shapefiles, and raster heatmaps—while offering visualization and reporting tools directly within QGIS.
+**OptimalMeasurementPlanner** is a QGIS plugin designed to support the optimal placement and analysis of meteorological masts (met masts) and wind turbines. It processes TRIX files and generates spatial outputs—CSV, shapefiles, and raster heatmaps—while offering visualization and reporting tools directly within QGIS.
 
 ---
 
@@ -59,7 +59,7 @@
 ## Installation
 
 1. **Copy the Plugin**  
-   Copy the `optimalmastplanner` directory into your QGIS plugins folder:
+   Copy the `OptimalMeasurementPlanner` directory into your QGIS plugins folder:
    ```
    C:\Users\<YourUser>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
    ```
@@ -76,14 +76,14 @@
 3. **Activate the Plugin**  
    - Open QGIS  
    - Go to **Plugins > Manage and Install Plugins**  
-   - Enable **OptimalMastPlanner**
+   - Enable **OptimalMeasurementPlanner**
 
 ---
 
 ## Usage
 
 1. **Open the Plugin**  
-   Click the *OptimalMastPlanner* icon in the QGIS toolbar.
+   Click the *OptimalMeasurementPlanner* icon in the QGIS toolbar.
 
 2. **Configure Inputs**  
    - Select a TRIX file  
@@ -104,9 +104,9 @@
 ## File Structure
 
 ```
-optimalmastplanner/
-├── OptimalMastPlanner.py            # Main plugin logic
-├── OptimalMastPlanner_dialog.py     # UI logic
+OptimalMeasurementPlanner/
+├── OptimalMeasurementPlanner.py            # Main plugin logic
+├── OptimalMeasurementPlanner_dialog.py     # UI logic
 ├── resources.py                     # Compiled Qt resources (icons, etc.)
 ├── cities_by_country/
 │   └── cities_by_country.xlsx       # Country/city CRS lookup
@@ -119,7 +119,7 @@ optimalmastplanner/
 
 ## Key Classes & Methods
 
-- **OptimalMastPlanner**
+- **OptimalMeasurementPlanner**
   - `initGui()` – Adds toolbar and menu actions  
   - `main_process()` – Full workflow: processing, output generation, and visualization  
   - `aggregate_process_trix_file()` – Aggregates TRIX data  
