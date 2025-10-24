@@ -21,7 +21,7 @@ Main Features:
 Workflow:
 1. User selects a TRIX file and output directory via the plugin dialog.
 2. The plugin processes the TRIX file, aggregates and analyzes the data, and generates all outputs.
-3. Outputs are saved in a timestamped results folder within the chosen directory.
+3. Outputs are saved in a timetamped results folder within the chosen directory.
 4. Layers are added to the QGIS project for visualization.
 5. Additional tools allow highlighting of optimal met mast locations.
 
@@ -595,8 +595,8 @@ class OptimalMeasurementPlanner:
             
     def highlight_best_met(self) :
     
-        output_best_pair_shp_path = os.path.join(self.output_direcory,'Optimal_pair_mest_mast.shp')
-        output_best_single_shp_path = os.path.join(self.output_direcory,'Optimal_single_mest_mast.shp')
+        output_best_pair_shp_path = os.path.join(self.output_direcory,'Optimal_pair_met_mast.shp')
+        output_best_single_shp_path = os.path.join(self.output_direcory,'Optimal_single_met_mast.shp')
         output_mast_points_file = os.path.join(self.output_direcory,'mast_points_data.csv')
         
         input_trix_file = self.dlg.trix_file.text()
@@ -611,22 +611,22 @@ class OptimalMeasurementPlanner:
             if str(crs) != '' :   
                 choice = self.dlg.comboBox.currentText()
                 if choice == 'Single' :
-                    if not self.layer_exists('Optimal_single_mest_mast') :
-                        #self.display_info('Generating Optimal_single_mest_mast')
+                    if not self.layer_exists('Optimal_single_met_mast') :
+                        #self.display_info('Generating Optimal_single_met_mast')
                         self.process_best_single_met_mast(output_mast_points_file, output_best_single_shp_path, crs)
-                        self.display_success('Optimal_single_mest_mast Successfully Generated')
+                        self.display_success('Optimal_single_met_mast Successfully Generated')
                     else :
-                        self.display_warning('Optimal_single_mest_mast Already Generated')     
+                        self.display_warning('Optimal_single_met_mast Already Generated')     
                         
                 elif choice == 'Pair'  :
-                    if not self.layer_exists('Optimal_pair_mest_mast') :
-                        #self.display_info('Generating Optimal_pair_mest_mast')
+                    if not self.layer_exists('Optimal_pair_met_mast') :
+                        #self.display_info('Generating Optimal_pair_met_mast')
                         self.process_best_two_met_mast(input_trix_file, output_best_pair_shp_path, crs)
-                        self.display_success('Optimal_pair_mest_mast Successfully Generated')
+                        self.display_success('Optimal_pair_met_mast Successfully Generated')
                     else :
-                        self.display_warning('Optimal_pair_mest_mast Already Generated')
+                        self.display_warning('Optimal_pair_met_mast Already Generated')
                 else:
-                    self.display_warning('Select an option for optimal Mest Mast')
+                    self.display_warning('Select an option for optimal met Mast')
                     
     def process_best_single_met_mast(self, file_path, output_shapefile_path, crs):
 
@@ -657,7 +657,7 @@ class OptimalMeasurementPlanner:
         fields.append(QgsField("rix_pct", QMetaType.Double, "double", 10, 2, "Reference RIX [%]"))
         fields.append(QgsField("rss_uncert_pct", QMetaType.Double, "double", 10, 2, rss_col))
         # Create a memory vector layer
-        layer = QgsVectorLayer('Point?crs='+crs, 'Optimal_single_mest_mast', 'memory')
+        layer = QgsVectorLayer('Point?crs='+crs, 'Optimal_single_met_mast', 'memory')
         pr = layer.dataProvider()
 
         # Add fields to the layer
@@ -686,7 +686,7 @@ class OptimalMeasurementPlanner:
         # Step 6: Styling the layer
         
 
-        layer = QgsVectorLayer(output_shapefile_path, "Optimal_single_mest_mast", "ogr")
+        layer = QgsVectorLayer(output_shapefile_path, "Optimal_single_met_mast", "ogr")
         layer = self.style_point_layer(layer, 'circle','#4bff4b', '3.5')
         
         # Step 7: Add the layer to the QGIS project
@@ -749,7 +749,7 @@ class OptimalMeasurementPlanner:
         mast_ids = [get_mast_id(mast1_coords), get_mast_id(mast2_coords)]
         pair_total_rss = best_total / len(turbines) if len(turbines) > 0 else float('nan')
 
-        vl = QgsVectorLayer("Point?crs={}".format(crs_epsg), "Optimal_pair_mest_mast", "memory")
+        vl = QgsVectorLayer("Point?crs={}".format(crs_epsg), "Optimal_pair_met_mast", "memory")
         pr = vl.dataProvider()
 
         # Add attributes (no individual_rss)
@@ -780,7 +780,7 @@ class OptimalMeasurementPlanner:
         if noerror:
             print("Successfully created shapefile at:", outpath)
             # Add layer to QGIS project
-            layer = QgsVectorLayer(outpath, "Optimal_pair_mest_mast", "ogr")
+            layer = QgsVectorLayer(outpath, "Optimal_pair_met_mast", "ogr")
             layer = self.style_point_layer(layer, 'square', '#4bff4b', '3.5')
             QgsProject.instance().addMapLayer(layer)
             
@@ -844,7 +844,7 @@ class OptimalMeasurementPlanner:
             mast1_coords = mast_coords[best_pair[0]]
             mast2_coords = mast_coords[best_pair[1]]
 
-            vl = QgsVectorLayer("Point?crs={}".format(crs_epsg), "Optimal_pair_mest_mast", "memory")
+            vl = QgsVectorLayer("Point?crs={}".format(crs_epsg), "Optimal_pair_met_mast", "memory")
             pr = vl.dataProvider()
             
             # Add attributes
@@ -870,7 +870,7 @@ class OptimalMeasurementPlanner:
             if noerror :
                 print("Successfully created shapefile at:", outpath)
                 # Add layer to QGIS project
-                layer = QgsVectorLayer(outpath, "Optimal_pair_mest_mast", "ogr")
+                layer = QgsVectorLayer(outpath, "Optimal_pair_met_mast", "ogr")
                 layer = self.style_point_layer(layer, 'square','#4bff4b', '3.5')
                 QgsProject.instance().addMapLayer(layer)
      
