@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- OptimalMastPlanner
+ OptimalMeasurementPlanner
                                  A QGIS plugin
                              -------------------
         begin                : 2025-04-15
@@ -19,11 +19,11 @@ This script initializes the plugin, making it known to QGIS.
 
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name
-    """Load OptimalMastPlanner class from file OptimalMastPlanner.
+    """Load OptimalMeasurementPlanner class from file OptimalMeasurementPlanner.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
     #
-    from .OptimalMastPlanner import OptimalMastPlanner
-    return OptimalMastPlanner(iface)
+    from .OptimalMeasurementPlanner import OptimalMeasurementPlanner
+    return OptimalMeasurementPlanner(iface)

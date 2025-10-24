@@ -3,9 +3,9 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=OptimalMastPlanner
+name=OptimalMeasurementPlanner
 qgisMinimumVersion=3.0
-description=OptimalMastPlanner
+description=OptimalMeasurementPlanner
 version=1.0
 author=Nualee Nuka-Nwikpasi
 email=nalni@vestas.com
