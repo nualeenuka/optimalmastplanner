@@ -21,7 +21,7 @@ Main Features:
 Workflow:
 1. User selects a TRIX file and output directory via the plugin dialog.
 2. The plugin processes the TRIX file, aggregates and analyzes the data, and generates all outputs.
-3. Outputs are saved in a timetamped results folder within the chosen directory.
+3. Outputs are saved in a timestamped results folder within the chosen directory.
 4. Layers are added to the QGIS project for visualization.
 5. Additional tools allow highlighting of optimal met mast locations.
 
